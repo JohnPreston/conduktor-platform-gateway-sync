@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "conduktor-platform-gateway-sync"
-version = "0.1.0"
-description = ""
+version = "0.0.1"
+description = "Simple script to sync Platform with Gateway tenants"
 authors = ["John \"Preston\" Mille <john@ews-network.net>"]
 readme = "README.md"
 packages = [{include = "conduktor_platform_gateway_sync"}]
