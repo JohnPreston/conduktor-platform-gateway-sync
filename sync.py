@@ -107,7 +107,8 @@ def set_update_tenants_in_platform(
                             properties=gen_cluster_properties(_tenant, new_jwt),
                         ),
                     )
-                    print("Updated cluster {} for tenant {}".format(cluster.technical_id, _tenant))
+                    print("Updated cluster {} for tenant {}".format(_cluster.technical_id, _tenant))
+                    break
             else:
                 new_cluster_props = gen_cluster_properties(_tenant, new_jwt)
                 new_cluster_body = UpsertSharedClusterRequest(
