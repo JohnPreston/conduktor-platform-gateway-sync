@@ -65,15 +65,16 @@ def gen_cluster_properties(tenant_name: str, password: str) -> str:
     props = """client.id=CONDUKTOR_PLATFORM_{}
 security.protocol=SASL_SSL
 sasl.mechanism=PLAIN
-default.api.timeout.ms=10000
-request.timeout.ms=5000
 acks=all
 sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username='{}' password='{}';
+default.api.timeout.ms=30000
 """.format(
         tenant_name, tenant_name, password
     )
 
     return props
+
+# request.timeout.ms=5000
 
 
 def set_update_tenants_in_platform(
