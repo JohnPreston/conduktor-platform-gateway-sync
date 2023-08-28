@@ -13,8 +13,7 @@ import re
 from argparse import ArgumentParser
 
 from cdk_proxy_api_client.proxy_api import ApiClient, ProxyClient
-from cdk_proxy_api_client.admin_auth import AdminAuth
-from cdk_proxy_api_client.tenant_mappings import Multitenancy
+from cdk_proxy_api_client.vclusters import VirturalClusters
 from conduktor_public_api_client.client import AuthenticatedClient
 from conduktor_public_api_client.api.cluster import (
     list_all_clusters,
@@ -39,6 +38,13 @@ def set_parser():
     parser.add_argument("--gw-api-username", type=str, required=True)
     parser.add_argument("--gw-api-password", type=str, required=True)
     parser.add_argument("--tenant-jwt-lifetime", type=int, default=(90 * 24 * 3600))
+    parser.add_argument(
+        "--sasl-username",
+        type=str,
+        required=False,
+        help="Specify a sasl.username for Platform to use. Default CONDUKTOR_PLATFORM",
+        default="CONDUKTOR_PLATFORM",
+    )
     return parser
 
 
@@ -61,7 +67,7 @@ def set_proxy_client(url: str, username: str, password: str) -> ProxyClient:
     return ProxyClient(_api)
 
 
-def gen_cluster_properties(tenant_name: str, password: str) -> str:
+def gen_cluster_properties(vcluster: str, username: str, password: str) -> str:
     props = """client.id=CONDUKTOR_PLATFORM_{}
 security.protocol=SASL_SSL
 sasl.mechanism=PLAIN
@@ -69,10 +75,11 @@ acks=all
 sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username='{}' password='{}';
 default.api.timeout.ms=30000
 """.format(
-        tenant_name, tenant_name, password
+        vcluster, username, password
     )
 
     return props
+
 
 # request.timeout.ms=5000
 
@@ -83,10 +90,11 @@ def set_update_tenants_in_platform(
     platform_url: str,
     platform_api_key: str,
     jwt_token_lifetime: int,
+    sasl_username: str,
 ) -> None:
-    tenants_req = Multitenancy(proxy_client).list_tenants()
-    tenants = tenants_req.json()["tenants"]
-    auth_client = AdminAuth(proxy_client)
+    vclusters = VirturalClusters(proxy_client)
+    tenants_req = vclusters.list_vclusters()
+    tenants = tenants_req.json()["vclusters"]
     with AuthenticatedClient(
         base_url=platform_url,
         token=platform_api_key,
@@ -94,8 +102,11 @@ def set_update_tenants_in_platform(
     ) as platform_client:
         clusters = list_all_clusters.sync(client=platform_client)
         for _tenant in tenants:
-            new_jwt = auth_client.create_tenant_credentials(
-                _tenant, token_lifetime_seconds=jwt_token_lifetime, token_only=True
+            new_jwt = vclusters.create_vcluster_user_token(
+                _tenant,
+                username="CONDUKTOR_PLATFORM",
+                lifetime_in_seconds=jwt_token_lifetime,
+                token_only=True,
             )
             for _cluster in clusters:
                 if _tenant == _cluster.technical_id or _tenant == _cluster.name:
@@ -105,18 +116,26 @@ def set_update_tenants_in_platform(
                         json_body=UpsertSharedClusterRequest(
                             bootstrap_servers=_cluster.bootstrap_servers,
                             name=_cluster.name,
-                            properties=gen_cluster_properties(_tenant, new_jwt),
+                            properties=gen_cluster_properties(
+                                _tenant, sasl_username, new_jwt
+                            ),
                         ),
                     )
-                    print("Updated cluster {} for tenant {}".format(_cluster.technical_id, _tenant))
+                    print(
+                        "Updated cluster {} for tenant {}".format(
+                            _cluster.technical_id, _tenant
+                        )
+                    )
                     break
             else:
-                new_cluster_props = gen_cluster_properties(_tenant, new_jwt)
+                new_cluster_props = gen_cluster_properties(
+                    _tenant, sasl_username, new_jwt
+                )
                 new_cluster_body = UpsertSharedClusterRequest(
-                        name=_tenant,
-                        bootstrap_servers=gw_bootstrap_servers,
-                        properties=new_cluster_props,
-                    )
+                    name=_tenant,
+                    bootstrap_servers=gw_bootstrap_servers,
+                    properties=new_cluster_props,
+                )
                 cluster = create_or_update_a_cluster.sync(
                     _tenant.replace(".", ""),
                     client=platform_client,
@@ -141,6 +160,7 @@ def main():
         _ARGS.platform_url,
         _ARGS.platform_api_key,
         _ARGS.tenant_jwt_lifetime,
+        _ARGS.sasl_username,
     )
 
 

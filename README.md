@@ -2,12 +2,21 @@
 
 Requirements:
 
-* Conduktor GW with API enabled for tenants
+* Conduktor GW Version 2.0+ with API enabled for vclusters
 * Conduktor Platform 1.17 + with API Key
+
+## Install
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
 ## Execute
 
-create a bash env file (i.e. `.my_config`) and set environment variables to match the command
+I recommend creating a bash env file (i.e. `.my_config`) and set environment variables to match the command to make
+it easier and repeatable.
 
 ```bash
 source .my_config

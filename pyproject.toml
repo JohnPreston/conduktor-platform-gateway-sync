@@ -8,7 +8,7 @@ packages = [{include = "conduktor_platform_gateway_sync"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-cdk-proxy-api-client = "^0.3.0"
+cdk-proxy-api-client = "0.4.0rc1"
 conduktor-public-api-client = "^0.0.1"
 pyjwt = "^2.8.0"
 
